@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FleetDeck</title>
+<style>
+:root {
+  --bg: #101216;
+  --panel: #171a20;
+  --panel2: #1d212a;
+  --line: #2a2f3a;
+  --fg: #c9d1d9;
+  --dim: #7d8590;
+  --accent: #ffb454;
+  --ok: #3fb950;
+  --bad: #f85149;
+  --warn: #d29922;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.mono { font-family: var(--mono); font-size: 12px; }
+a { color: var(--accent); }
+
+header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+header h1 { font-size: 15px; margin: 0; letter-spacing: 2px; color: var(--accent); font-family: var(--mono); }
+header .sub { color: var(--dim); font-size: 11px; }
+.badge {
+  font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 3px;
+  border: 1px solid var(--line); color: var(--dim); text-transform: uppercase; letter-spacing: 1px;
+}
+.badge.ok { color: var(--ok); border-color: var(--ok); }
+.badge.bad { color: var(--bad); border-color: var(--bad); }
+.badge.dry { color: var(--warn); border-color: var(--warn); }
+.spacer { flex: 1; }
+
+main { padding: 14px 16px 60px; max-width: 1500px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 14px; }
+.panel > .ph {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim);
+}
+.panel > .pb { padding: 10px 12px; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); font-weight: 600; }
+tbody tr:hover { background: var(--panel2); }
+td.mono, th.mono { font-family: var(--mono); font-size: 12px; }
+
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.dot.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.dot.off { background: #444c56; }
+
+button {
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 4px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); color: #14100a; border-color: var(--accent); font-weight: 600; }
+button.primary:hover { filter: brightness(1.1); color: #14100a; }
+button.danger:hover { border-color: var(--bad); color: var(--bad); }
+button.mini { padding: 1px 7px; font-size: 11px; }
+button:disabled { opacity: .4; cursor: default; }
+
+input[type=text], input[type=password], select, textarea {
+  background: #0b0d10; color: var(--fg); border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 8px; font: inherit; width: 100%;
+}
+input.mono, textarea { font-family: var(--mono); font-size: 12px; }
+textarea { min-height: 110px; resize: vertical; }
+label { display: block; margin: 10px 0 3px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+.row { display: flex; gap: 10px; } .row > * { flex: 1; }
+.chk { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; color: var(--fg); text-transform: none; letter-spacing: 0; }
+.hint { color: var(--dim); font-size: 11px; margin-top: 4px; }
+
+.flag { font-family: var(--mono); font-size: 10px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--line); color: var(--dim); margin-right: 3px; }
+.flag.g { color: var(--accent); border-color: var(--accent); }
+.flag.n { color: #58a6ff; border-color: #58a6ff; }
+
+.modal-back {
+  position: fixed; inset: 0; background: rgba(5,6,8,.75); display: none;
+  align-items: flex-start; justify-content: center; z-index: 50; padding: 60px 20px;
+}
+.modal-back.open { display: flex; }
+.modal {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  width: 520px; max-width: 100%; max-height: 85vh; overflow: auto; padding: 16px 18px;
+}
+.modal h2 { margin: 0 0 4px; font-size: 14px; font-family: var(--mono); letter-spacing: 1px; color: var(--accent); text-transform: uppercase; }
+.modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal .warn-box { border: 1px solid var(--bad); border-radius: 4px; padding: 8px 10px; color: var(--bad); font-size: 12px; margin-top: 10px; }
+
+#toasts { position: fixed; bottom: 16px; right: 16px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 4px; padding: 8px 12px; font-size: 12px; max-width: 420px; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+.toast.err { border-left-color: var(--bad); }
+
+#login-back { position: fixed; inset: 0; background: var(--bg); z-index: 200; display: flex; align-items: center; justify-content: center; }
+#login-back .modal { width: 340px; }
+
+.num { text-align: right; font-family: var(--mono); font-size: 12px; }
+.dim { color: var(--dim); }
+.clickable { cursor: pointer; }
+.ev-detail { white-space: pre-wrap; word-break: break-all; font-family: var(--mono); font-size: 11px; color: var(--dim); max-width: 560px; }
+#events-tbl td { white-space: normal; vertical-align: top; }
+.tbl-scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div id="login-back" style="display:none">
+  <div class="modal">
+    <h2>FleetDeck</h2>
+    <div class="sub dim">diskless fleet console</div>
+    <form id="login-form">
+      <label>Admin password</label>
+      <input type="password" id="login-pw" autofocus autocomplete="current-password">
+      <div id="login-err" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
+      <div class="actions"><button class="primary" type="submit">Sign in</button></div>
+    </form>
+  </div>
+</div>
+
+<header>
+  <h1>FLEETDECK</h1>
+  <span class="sub" id="hdr-url"></span>
+  <span class="badge" id="hdr-conn">…</span>
+  <span class="badge dry" id="hdr-dry" style="display:none">DRY RUN</span>
+  <span class="sub" id="hdr-poll"></span>
+  <span class="spacer"></span>
+  <button class="mini" id="btn-settings">Settings</button>
+  <button class="mini" id="btn-logout">Log out</button>
+</header>
+
+<main>
+  <div id="conn-warning" class="panel" style="display:none;border-color:var(--warn)">
+    <div class="pb" style="color:var(--warn)" id="conn-warning-text"></div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      Clients
+      <span class="spacer"></span>
+      <button class="mini" id="btn-bulk-reset" disabled>Reset selected</button>
+      <button class="mini primary" id="btn-new">+ New client</button>
+    </div>
+    <div class="tbl-scroll">
+    <table id="clients-tbl">
+      <thead><tr>
+        <th><input type="checkbox" id="sel-all"></th>
+        <th>Status</th><th>Name</th><th class="mono">MAC</th><th class="mono">zvol</th>
+        <th class="mono">Origin</th><th class="num">Delta</th><th>Last boot</th><th>Flags</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <div class="ph">Events <span class="spacer"></span><button class="mini" id="btn-ev-refresh">Refresh</button></div>
+        <div class="tbl-scroll">
+        <table id="events-tbl">
+          <thead><tr><th>Time (UTC)</th><th>Action</th><th>Client</th><th>Detail</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="ph">Golden image <span class="spacer"></span><button class="mini primary" id="btn-promote">Promote → next gold-vN</button></div>
+        <div class="pb">
+          <div class="mono dim" id="golden-zvol"></div>
+          <table id="golden-tbl" style="margin-top:8px">
+            <thead><tr><th class="mono">Snapshot</th><th class="num">Space</th><th class="num">Clients</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">Discovered clients</div>
+        <div class="pb" id="discovered-box"><span class="dim">None. Unknown MACs that hit /boot/ show up here.</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-back" id="modal-back">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+'use strict';
+let STATE = null;
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(path, opts={}) {
+  const res = await fetch(path, { headers: {'Content-Type':'application/json'}, ...opts });
+  if (res.status === 401) { showLogin(); throw new Error('unauthenticated'); }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+function toast(msg, err=false) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (err ? ' err' : '');
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), err ? 9000 : 4500);
+}
+
+function fmtBytes(n) {
+  if (n === null || n === undefined) return '—';
+  if (n === 0) return '0';
+  const u = ['B','K','M','G','T','P'];
+  const i = Math.min(Math.floor(Math.log2(n)/10), u.length-1);
+  return (n/2**(10*i)).toFixed(i ? 1 : 0) + u[i];
+}
+function fmtTime(t) {
+  if (!t) return '—';
+  return String(t).replace('T',' ').replace(/\.\d+Z?$/,'').slice(0, 16);
+}
+
+// ---------- login ----------
+function showLogin() { $('#login-back').style.display = 'flex'; }
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/login', { method:'POST', body: JSON.stringify({ password: $('#login-pw').value }) });
+    $('#login-back').style.display = 'none';
+    $('#login-pw').value = '';
+    refresh(); loadEvents();
+  } catch (err) { $('#login-err').textContent = err.message; }
+});
+$('#btn-logout').onclick = async () => { await api('/api/logout', {method:'POST'}); showLogin(); };
+
+// ---------- modal helpers ----------
+function openModal(html) { $('#modal-body').innerHTML = html; $('#modal-back').classList.add('open'); }
+function closeModal() { $('#modal-back').classList.remove('open'); }
+$('#modal-back').addEventListener('click', (e) => { if (e.target.id === 'modal-back') closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+function snapshotOptions(selected) {
+  const snaps = (STATE?.golden?.snapshots || []).slice().reverse();
+  if (!snaps.length) return `<option value="">(no gold-* snapshots found)</option>`;
+  return snaps.map(s => `<option value="${esc(s.name)}" ${s.name===selected?'selected':''}>${esc(s.name)} (${s.clients} client${s.clients===1?'':'s'})</option>`).join('');
+}
+
+// ---------- render ----------
+function render() {
+  const st = STATE;
+  $('#hdr-url').textContent = st.truenas_url + (st.protocol ? ` · ${st.protocol}` : '');
+  const conn = $('#hdr-conn');
+  conn.textContent = st.connected ? 'connected' : 'offline';
+  conn.className = 'badge ' + (st.connected ? 'ok' : 'bad');
+  $('#hdr-dry').style.display = st.dry_run ? '' : 'none';
+  $('#hdr-poll').textContent = st.last_poll ? 'poll ' + fmtTime(st.last_poll) : '';
+
+  const warn = $('#conn-warning');
+  if (!st.connected) {
+    warn.style.display = '';
+    $('#conn-warning-text').textContent = 'TrueNAS unreachable' + (st.last_error ? `: ${st.last_error}` : '') +
+      ' — dashboard data is stale; boot script serving still works.';
+  } else if (st.missing_ops && st.missing_ops.length) {
+    warn.style.display = '';
+    $('#conn-warning-text').textContent = 'API introspection could not resolve: ' + st.missing_ops.join(', ') +
+    ' — update lib/adapter.js CANDIDATES for this TrueNAS version.';
+  } else warn.style.display = 'none';
+
+  // clients
+  const tb = $('#clients-tbl tbody');
+  const checked = new Set($$('.sel:checked', tb).map(c => c.dataset.id));
+  tb.innerHTML = st.clients.map(c => {
+    const originMismatch = c.zfs_origin && !c.zfs_origin.endsWith('@' + c.golden_snapshot);
+    return `<tr>
+      <td><input type="checkbox" class="sel" data-id="${c.id}" ${checked.has(String(c.id))?'checked':''}></td>
+      <td><span class="dot ${c.online?'on':'off'}"></span>${c.online?'booted':'<span class="dim">offline</span>'}</td>
+      <td><b>${esc(c.name)}</b>${c.notes?` <span class="dim" title="${esc(c.notes)}">✎</span>`:''}</td>
+      <td class="mono">${esc(c.mac)}</td>
+      <td class="mono dim" title="${esc(c.zvol)}">${esc(c.zvol.split('/').pop())}${c.zvol_missing?' <span style="color:var(--bad)" title="zvol not found on TrueNAS">⚠</span>':''}</td>
+      <td class="mono" ${originMismatch?`style="color:var(--warn)" title="ZFS origin is ${esc(c.zfs_origin)}"`:''}>${esc(c.golden_snapshot)}${originMismatch?' ⚠':''}</td>
+      <td class="num">${fmtBytes(c.space_used)}</td>
+      <td class="dim">${fmtTime(c.last_boot_at)}</td>
+      <td>${c.boot_golden_once?'<span class="flag g" title="will boot the golden image on next serve, then revert">GOLD¹</span>':''}${c.nightly_reset?'<span class="flag n" title="nightly reset enabled">NIGHT</span>':''}${c.ipxe_override?'<span class="flag" title="custom iPXE override active">TPL</span>':''}</td>
+      <td>
+        <button class="mini" onclick="uiReset(${c.id})">reset</button>
+        <button class="mini" onclick="uiRebase(${c.id})">rebase</button>
+        <button class="mini" onclick="uiEdit(${c.id})">edit</button>
+        <button class="mini danger" onclick="uiRetire(${c.id})">retire</button>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="10" class="dim">No clients yet — create one or PXE-boot a machine to discover it.</td></tr>`;
+  syncBulk();
+
+  // golden
+  $('#golden-zvol').textContent = st.golden.zvol;
+  $('#golden-tbl tbody').innerHTML = (st.golden.snapshots || []).slice().reverse().map(s => `
+    <tr><td class="mono">${esc(s.name)}</td><td class="num">${fmtBytes(s.used)}</td><td class="num">${s.clients||''}</td>
+    <td><button class="mini" title="reset every client onto this snapshot" onclick="uiRebaseAll('${esc(s.name)}')">rebase all</button></td></tr>
+  `).join('') || `<tr><td colspan="4" class="dim">no gold-* snapshots ${st.connected?'found':'(offline)'}</td></tr>`;
+
+  // discovered
+  const d = st.discovered || [];
+  $('#discovered-box').innerHTML = d.length ? `<table><thead><tr><th class="mono">MAC</th><th>Last seen</th><th class="num">Hits</th><th></th></tr></thead><tbody>` +
+    d.map(x => `<tr><td class="mono">${esc(x.mac)}</td><td class="dim">${fmtTime(x.last_seen)}</td><td class="num">${x.hits}</td>
+      <td><button class="mini primary" onclick="uiNew('${esc(x.mac)}')">adopt</button>
+      <button class="mini" onclick="uiDismiss('${esc(x.mac)}')">✕</button></td></tr>`).join('') + '</tbody></table>'
+    : '<span class="dim">None. Unknown MACs that hit /boot/ show up here.</span>';
+}
+
+function syncBulk() {
+  $('#btn-bulk-reset').disabled = $$('.sel:checked').length === 0;
+}
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'sel-all') { $$('.sel').forEach(c => c.checked = e.target.checked); }
+  if (e.target.classList?.contains('sel') || e.target.id === 'sel-all') syncBulk();
+});
+
+// ---------- data ----------
+async function refresh() {
+  try {
+    STATE = await api('/api/state');
+    render();
+  } catch (err) { if (err.message !== 'unauthenticated') toast('state: ' + err.message, true); }
+}
+async function loadEvents() {
+  try {
+    const evs = await api('/api/events?limit=100');
+    $('#events-tbl tbody').innerHTML = evs.map(e => `<tr>
+      <td class="mono dim">${fmtTime(e.ts)}</td><td class="mono">${esc(e.action)}</td>
+      <td class="mono">${esc(e.client||'')}</td>
+      <td><div class="ev-detail">${esc(JSON.stringify(e.detail))}</div></td></tr>`).join('');
+  } catch (err) { /* handled by 401 path */ }
+}
+$('#btn-ev-refresh').onclick = loadEvents;
+
+// ---------- operations UI ----------
+window.uiNew = (mac='') => {
+  openModal(`
+    <h2>New client</h2>
+    <div class="hint">Clones the golden snapshot → zvol, creates extent + target + LUN 0. All-or-nothing.</div>
+    <form id="f">
+      <div class="row">
+        <div><label>Name (zvol + target name)</label><input class="mono" name="name" required pattern="[a-z0-9][a-z0-9_-]*" placeholder="client01"></div>
+        <div><label>MAC</label><input class="mono" name="mac" required value="${esc(mac)}" placeholder="aa:bb:cc:dd:ee:ff"></div>
+      </div>
+      <label>Golden snapshot</label><select name="golden_snapshot">${snapshotOptions()}</select>
+      <label>zvol size override <span class="dim">(optional — default: inherited from clone)</span></label>
+      <input class="mono" name="volsize" placeholder="e.g. 256G">
+      <label>Notes</label><input name="notes">
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Create</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    try {
+      const row = await api('/api/clients', { method:'POST', body: JSON.stringify(f) });
+      toast(`client '${row.name}' created — target ${row.target_name}, zvol ${row.zvol}`);
+      closeModal(); refresh(); loadEvents();
+    } catch (err) { toast(err.message, true); }
+  };
+};
+$('#btn-new').onclick = () => uiNew();
+
+window.uiDismiss = async (mac) => {
+  await api('/api/discovered/' + mac.replace(/:/g,'-'), { method:'DELETE' });
+  refresh();
+};
+
+function clientById(id) { return STATE.clients.find(c => c.id === id); }
+
+window.uiReset = (id) => {
+  const c = clientById(id); if (!c) return;
+  openModal(`
+    <h2>Reset ${esc(c.name)}</h2>
+    <div class="hint">Destroys the clone zvol <span class="mono">${esc(c.zvol)}</span> and re-clones from
+    <span class="mono">${esc(STATE.golden.zvol)}@${esc(c.golden_snapshot)}</span>. Extent/target untouched.</div>
+    ${c.online ? '<div class="warn-box">This client has an ACTIVE iSCSI session (it is booted). Reset will be refused unless you force it — forcing while Windows is running WILL corrupt the session.</div>' : ''}
+    <form id="f">
+      <label class="chk"><input type="checkbox" name="force"> force (ignore active session)</label>
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Reset</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api(`/api/clients/${id}/reset`, { method:'POST', body: JSON.stringify({ force: e.target.force.checked }) });
+      toast(`'${c.name}' wiped back to ${c.golden_snapshot}`);
+      closeModal(); refresh(); loadEvents();
+    } catch (err) { toast(err.message, true); }
+  };
+};
+
+window.uiRebase = (id) => {
+  const c = clientById(id); if (!c) return;
+  openModal(`
+    <h2>Rebase ${esc(c.name)}</h2>
+    <div class="hint">Same as reset, but re-clones from a different golden snapshot (currently on <span class="mono">${esc(c.golden_snapshot)}</span>).</div>
+    ${c.online ? '<div class="warn-box">Active iSCSI session — needs force.</div>' : ''}
+    <form id="f">
+      <label>Target snapshot</label><select name="snapshot">${snapshotOptions(c.golden_snapshot)}</select>
+      <label class="chk"><input type="checkbox" name="force"> force (ignore active session)</label>
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Rebase</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api(`/api/clients/${id}/rebase`, { method:'POST', body: JSON.stringify({ snapshot: e.target.snapshot.value, force: e.target.force.checked }) });
+      toast(`'${c.name}' rebased to ${e.target.snapshot.value}`);
+      closeModal(); refresh(); loadEvents();
+    } catch (err) { toast(err.message, true); }
+  };
+};
+
+window.uiRebaseAll = (snapshot) => {
+  const ids = STATE.clients.map(c => c.id);
+  if (!ids.length) return toast('no clients to rebase', true);
+  bulkResetModal(ids, snapshot, `Rebase ALL ${ids.length} clients → ${snapshot}`);
+};
+
+$('#btn-bulk-reset').onclick = () => {
+  const ids = $$('.sel:checked').map(c => parseInt(c.dataset.id, 10));
+  bulkResetModal(ids, null, `Reset ${ids.length} selected client(s)`);
+};
+
+function bulkResetModal(ids, snapshot, title) {
+  const names = ids.map(id => clientById(id)?.name).filter(Boolean);
+  const online = ids.filter(id => clientById(id)?.online).length;
+  openModal(`
+    <h2>${esc(title)}</h2>
+    <div class="hint mono">${esc(names.join(', '))}</div>
+    ${online ? `<div class="warn-box">${online} of these are BOOTED right now. They'll be skipped unless you force.</div>` : ''}
+    <form id="f">
+      <label class="chk"><input type="checkbox" name="force"> force (ignore active sessions)</label>
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Go</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api('/api/bulk/reset', { method:'POST', body: JSON.stringify({ ids, snapshot, force: e.target.force.checked }) });
+      const ok = r.filter(x => x.ok).length, fail = r.filter(x => !x.ok);
+      toast(`bulk: ${ok} ok, ${fail.length} failed`);
+      fail.forEach(f => toast(`#${f.id}: ${f.error}`, true));
+      closeModal(); refresh(); loadEvents();
+    } catch (err) { toast(err.message, true); }
+  };
+}
+
+window.uiRetire = (id) => {
+  const c = clientById(id); if (!c) return;
+  openModal(`
+    <h2>Retire ${esc(c.name)}</h2>
+    <div class="warn-box">Permanently deletes: iSCSI target-extent → target → extent → zvol
+    <span class="mono">${esc(c.zvol)}</span> → DB record. Cannot be undone.</div>
+    <form id="f">
+      <label>Type the client name <span class="mono">${esc(c.name)}</span> to confirm</label>
+      <input class="mono" name="confirm" autocomplete="off">
+      <label class="chk"><input type="checkbox" name="force"> force (ignore active session)</label>
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary danger">Retire</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api(`/api/clients/${id}/retire`, { method:'POST', body: JSON.stringify({ confirm: e.target.confirm.value, force: e.target.force.checked }) });
+      toast(`retired '${r.name}': ${r.steps.join('; ')}`);
+      closeModal(); refresh(); loadEvents();
+    } catch (err) { toast(err.message, true); }
+  };
+};
+
+window.uiEdit = (id) => {
+  const c = clientById(id); if (!c) return;
+  openModal(`
+    <h2>Edit ${esc(c.name)}</h2>
+    <form id="f">
+      <label>MAC</label><input class="mono" name="mac" value="${esc(c.mac)}">
+      <label>Notes</label><input name="notes" value="${esc(c.notes)}">
+      <label class="chk"><input type="checkbox" name="boot_golden_once" ${c.boot_golden_once?'checked':''}>
+        boot golden image (<span class="mono">${esc(STATE.settings.golden_target)}</span>) on next serve, then auto-revert</label>
+      <label class="chk"><input type="checkbox" name="nightly_reset" ${c.nightly_reset?'checked':''}>
+        nightly reset at ${esc(STATE.settings.nightly_reset_time)} (café mode)</label>
+      <label>iPXE override <span class="dim">(raw script; empty = use global template)</span></label>
+      <textarea name="ipxe_override" placeholder="#!ipxe&#10;sanboot iscsi:{{portal_ip}}::::{{iqn_prefix}}:{{target_name}}">${esc(c.ipxe_override||'')}</textarea>
+      <div class="hint">Vars: {{name}} {{mac}} {{portal_ip}} {{iqn_prefix}} {{target_name}} {{zvol}} {{golden_snapshot}}</div>
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Save</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    const t = e.target;
+    try {
+      await api(`/api/clients/${id}`, { method:'PATCH', body: JSON.stringify({
+        mac: t.mac.value, notes: t.notes.value,
+        boot_golden_once: t.boot_golden_once.checked,
+        nightly_reset: t.nightly_reset.checked,
+        ipxe_override: t.ipxe_override.value,
+      })});
+      toast(`'${c.name}' saved`);
+      closeModal(); refresh();
+    } catch (err) { toast(err.message, true); }
+  };
+};
+
+$('#btn-promote').onclick = () => {
+  openModal(`
+    <h2>Promote golden</h2>
+    <div class="hint">Snapshots <span class="mono">${esc(STATE.golden.zvol)}</span> as the next
+    <span class="mono">gold-vN</span>. Do this after you've updated + re-sysprepped the golden image.
+    Nothing is deleted. Afterwards you can bulk-rebase clients onto the new version.</div>
+    <form id="f"><div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Snapshot now</button></div></form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api('/api/golden/promote', { method:'POST' });
+      closeModal(); await refresh(); loadEvents();
+      openModal(`
+        <h2>Created ${esc(r.snapshot)}</h2>
+        <div class="hint">Rebase all clients onto it now? (Booted clients are skipped unless forced.)</div>
+        <form id="f2">
+          <label class="chk"><input type="checkbox" name="force"> force</label>
+          <div class="actions"><button type="button" onclick="closeModal()">Later</button><button class="primary">Bulk-rebase all</button></div>
+        </form>`);
+      $('#f2').onsubmit = async (e2) => {
+        e2.preventDefault();
+        const ids = STATE.clients.map(c => c.id);
+        const rr = await api('/api/bulk/reset', { method:'POST', body: JSON.stringify({ ids, snapshot: r.snapshot, force: e2.target.force.checked }) });
+        toast(`rebase to ${r.snapshot}: ${rr.filter(x=>x.ok).length} ok, ${rr.filter(x=>!x.ok).length} failed`);
+        closeModal(); refresh(); loadEvents();
+      };
+    } catch (err) { toast(err.message, true); }
+  };
+};
+
+$('#btn-settings').onclick = () => {
+  const s = STATE.settings;
+  openModal(`
+    <h2>Settings</h2>
+    <form id="f">
+      <div class="row">
+        <div><label>Portal IP (sanboot)</label><input class="mono" name="portal_ip" value="${esc(s.portal_ip)}"></div>
+        <div><label>IQN prefix</label><input class="mono" name="iqn_prefix" value="${esc(s.iqn_prefix)}"></div>
+      </div>
+      <div class="row">
+        <div><label>Golden zvol</label><input class="mono" name="golden_zvol" value="${esc(s.golden_zvol)}"></div>
+        <div><label>Golden target</label><input class="mono" name="golden_target" value="${esc(s.golden_target)}"></div>
+      </div>
+      <label>Managed prefix <span class="dim">(hard safety boundary — FleetDeck never touches zvols outside this)</span></label>
+      <input class="mono" name="managed_prefix" value="${esc(s.managed_prefix)}">
+      <div class="row">
+        <div><label>Nightly reset time</label><input class="mono" name="nightly_reset_time" value="${esc(s.nightly_reset_time)}"></div>
+        <div><label>Nightly force <span class="dim">(1 = reset even if booted)</span></label><input class="mono" name="nightly_force" value="${esc(s.nightly_force)}"></div>
+      </div>
+      <label>Global iPXE template</label><textarea name="ipxe_template">${esc(s.ipxe_template)}</textarea>
+      <label>Unknown-MAC iPXE template</label><textarea name="ipxe_unknown_template">${esc(s.ipxe_unknown_template)}</textarea>
+      <label>Target groups override <span class="dim">(JSON; empty = copy from an existing target)</span></label>
+      <input class="mono" name="target_groups" value="${esc(s.target_groups)}">
+      <label>TFTP note</label><input name="tftp_note" value="${esc(s.tftp_note)}">
+      <div class="actions"><button type="button" onclick="closeModal()">Cancel</button><button class="primary">Save</button></div>
+    </form>`);
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/settings', { method:'PUT', body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+      toast('settings saved');
+      closeModal(); refresh();
+    } catch (err) { toast(err.message, true); }
+  };
+};
+
+// ---------- boot ----------
+(async function init() {
+  try {
+    STATE = await api('/api/state');
+    render(); loadEvents();
+  } catch (err) { /* 401 -> login shown */ }
+  setInterval(refresh, 10000);
+  setInterval(loadEvents, 30000);
+})();
+</script>
+</body>
+</html>
