@@ -1,0 +1,22 @@
+# Example deployment. On TrueNAS SCALE use Apps -> Custom App with the same
+# image/env/volume values (see README "Deploying on TrueNAS SCALE").
+services:
+  fleetdeck:
+    build: .
+    # image: ghcr.io/YOURUSER/fleetdeck:latest   # if you push the image somewhere
+    container_name: fleetdeck
+    restart: unless-stopped
+    ports:
+      - "8080:8080"        # UI + API + /boot/*.ipxe — keep this LAN-only
+    environment:
+      TRUENAS_URL: "wss://192.168.1.36:8444/websocket"   # falls back to wss://192.168.1.36/api/current automatically
+      TRUENAS_API_KEY: "CHANGE_ME"                        # create in TrueNAS UI: top-right user icon -> API Keys
+      ADMIN_PASSWORD: "CHANGE_ME"
+      HTTP_PORT: "8080"
+      DRY_RUN: "1"          # start read-only; flip to 0 after bring-up checks
+      # TRUENAS_VERIFY_TLS: "0"   # default 0: accept the box's self-signed cert
+    volumes:
+      - fleetdeck-data:/data
+
+volumes:
+  fleetdeck-data:
